@@ -2,8 +2,22 @@
 # Copyright (C) 2011 OpenWrt.org
 #
 
+. /lib/functions/system.sh
+
 PART_NAME=firmware
 REQUIRE_IMAGE_METADATA=1
+
+gl_ar300m_do_upgrade () {
+	local size="$(mtd_get_part_size 'ubi')"
+	case "$size" in
+	132120576)
+		nand_do_upgrade "$ARGV"
+		;;
+	*)
+		default_do_upgrade "$ARGV"
+		;;
+	esac
+}
 
 routerstation_do_upgrade() {
 	local append
@@ -22,6 +36,9 @@ platform_do_upgrade() {
 	local board=$(board_name)
 
 	case "$board" in
+	glinet,ar300m)
+		gl_ar300m_do_upgrade "$ARGV"
+		;;
 	ubnt,routerstation|\
 	ubnt,routerstation-pro)
 		routerstation_do_upgrade "$ARGV"
