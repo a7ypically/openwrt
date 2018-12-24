@@ -1,0 +1,61 @@
+--- a/drivers/staging/mt29f_spinand/mt29f_spinand.c	2018-12-17 09:28:56.000000000 +0100
++++ b/drivers/staging/mt29f_spinand/mt29f_spinand.c	2018-12-22 22:54:23.693601877 +0100
+@@ -344,10 +344,10 @@
+ 	column = byte_id;
+ 	cmd.cmd = CMD_READ_RDM;
+ 	cmd.n_addr = 3;
+-	cmd.addr[0] = (u8)((column & 0xff00) >> 8);
+-	cmd.addr[0] |= (u8)(((page_id >> 6) & 0x1) << 4);
+-	cmd.addr[1] = (u8)(column & 0x00ff);
+-	cmd.addr[2] = (u8)(0xff);
++	cmd.addr[1] = (u8)((column & 0xff00) >> 8);
++	cmd.addr[1] |= (u8)(((page_id >> 6) & 0x1) << 4);
++	cmd.addr[2] = (u8)(column & 0x00ff);
++	cmd.addr[0] = (u8)(0xff);
+ 	cmd.n_dummy = 0;
+ 	cmd.n_rx = len;
+ 	cmd.rx_buf = rbuf;
+@@ -366,6 +366,11 @@
+  *   The read includes two commands to the Nand - 0x13 and 0x03 commands
+  *   Poll to read status to wait for tRD time.
+  */
++static inline u8 ath79_spinand_eccsr_gd(u8 status)
++{
++	return status >> 4 & 0x7;
++}
++
+ static int spinand_read_page(struct spi_device *spi_nand, u16 page_id,
+ 			     u16 offset, u16 len, u8 *rbuf)
+ {
+@@ -394,7 +399,8 @@
+ 		}
+ 
+ 		if ((status & STATUS_OIP_MASK) == STATUS_READY) {
+-			if ((status & STATUS_ECC_MASK) == STATUS_ECC_ERROR) {
++			status = ath79_spinand_eccsr_gd(status);
++			if (status == 0x07) {
+ 				dev_err(&spi_nand->dev, "ecc error, page=%d\n",
+ 					page_id);
+ 				return 0;
+@@ -521,6 +527,10 @@
+ #else
+ 	wbuf = buf;
+ #endif
++	retval = spinand_program_data_to_cache(spi_nand, page_id,
++					       offset, len, wbuf);
++	if (retval < 0)
++		return retval;
+ 	retval = spinand_write_enable(spi_nand);
+ 	if (retval < 0) {
+ 		dev_err(&spi_nand->dev, "write enable failed!!\n");
+@@ -529,10 +539,6 @@
+ 	if (wait_till_ready(spi_nand))
+ 		dev_err(&spi_nand->dev, "wait timedout!!!\n");
+ 
+-	retval = spinand_program_data_to_cache(spi_nand, page_id,
+-					       offset, len, wbuf);
+-	if (retval < 0)
+-		return retval;
+ 	retval = spinand_program_execute(spi_nand, page_id);
+ 	if (retval < 0)
+ 		return retval;

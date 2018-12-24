@@ -1,0 +1,87 @@
+--- a/src/rfc1035.c	2017-10-02 16:13:51.000000000 +0300
++++ b/src/rfc1035.c	2018-03-20 11:01:15.737623193 +0200
+@@ -579,6 +579,36 @@
+   return minttl;
+ }
+ 
++static int get_min_ttl(struct dns_header *header, size_t qlen)
++{
++  unsigned char *p;
++  int i, rdlen;
++  unsigned long ttl, minttl = 0;
++
++  /* skip over questions */
++  if (!(p = skip_questions(header, qlen)))
++    return 0; /* bad packet */
++
++  for (i = ntohs(header->ancount); i != 0; i--)
++    {
++      if (!(p = skip_name(p, header, qlen, 10)))
++	return minttl; /* bad packet */
++      
++      p += 2; //GETSHORT(qtype, p); 
++      p += 2; //GETSHORT(qclass, p);
++      GETLONG(ttl, p);
++      GETSHORT(rdlen, p);
++
++      if (!minttl || (ttl < minttl)) minttl = ttl;
++      
++      if (!ADD_RDLEN(header, p, qlen, rdlen))
++	return minttl;
++    }
++  
++  return minttl;
++}
++
++
+ /* Note that the following code can create CNAME chains that don't point to a real record,
+    either because of lack of memory, or lack of SOA records.  These are treated by the cache code as 
+    expired and cleaned out that way. 
+@@ -588,7 +618,7 @@
+ {
+   unsigned char *p, *p1, *endrr, *namep;
+   int i, j, qtype, qclass, aqtype, aqclass, ardlen, res, searched_soa = 0;
+-  unsigned long ttl = 0;
++  unsigned long ttl = 0, minttl = 0;
+   struct all_addr addr;
+ #ifdef HAVE_IPSET
+   char **ipsets_cur;
+@@ -609,6 +639,7 @@
+ #endif
+     }
+   
++  if (ipsets) minttl = get_min_ttl(header, qlen);
+   /* go through the questions. */
+   p = (unsigned char *)(header+1);
+   
+@@ -734,7 +765,13 @@
+ 	      GETSHORT(aqtype, p1); 
+ 	      GETSHORT(aqclass, p1);
+ 	      GETLONG(attl, p1);
+-	      if ((daemon->max_ttl != 0) && (attl > daemon->max_ttl) && !is_sign)
++	      if (minttl)
++		{
++		  (p1) -= 4;
++		  PUTLONG(minttl, p1);
++		  attl = minttl;
++		}
++	      else if ((daemon->max_ttl != 0) && (attl > daemon->max_ttl) && !is_sign)
+ 		{
+ 		  (p1) -= 4;
+ 		  PUTLONG(daemon->max_ttl, p1);
+@@ -1579,6 +1616,15 @@
+ 		      continue;
+ 		    }
+ 		}
++
++	      if (qtype == T_AAAA)
++		{
++		    {
++		      ans = 1;
++		      auth = 0;
++		      continue;
++		    }
++		}
+ 
+ 	      /* interface name stuff */
+ 	    intname_restart:

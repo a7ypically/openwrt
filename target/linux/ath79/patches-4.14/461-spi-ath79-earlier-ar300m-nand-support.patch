@@ -1,0 +1,18 @@
+--- a/drivers/staging/mt29f_spinand/mt29f_spinand.c	2018-12-17 09:28:56.000000000 +0100
++++ b/drivers/staging/mt29f_spinand/mt29f_spinand.c	2018-12-22 22:54:23.693601877 +0100
+@@ -139,8 +139,13 @@
+ 		dev_err(&spi_nand->dev, "error %d reading id\n", retval);
+ 		return retval;
+ 	}
+-	id[0] = nand_id[1];
+-	id[1] = nand_id[2];
++	if (nand_id[0] == NAND_MFR_GIGADEVICE || nand_id[0] == NAND_MFR_HEYANGTEK) {
++		id[0] = nand_id[0];
++		id[1] = nand_id[1];
++	} else { /* Macronix, Micron */
++		id[0] = nand_id[1];
++		id[1] = nand_id[2];
++	}
+ 	return retval;
+ }
+ 
