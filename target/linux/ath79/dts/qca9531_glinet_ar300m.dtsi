@@ -16,18 +16,21 @@
 			label = "reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio 3 GPIO_ACTIVE_LOW>;
+			debounce-interval = <60>;
 		};
 
 		button1 {
 			label = "button right";
 			linux,code = <BTN_0>;
 			gpios = <&gpio 0 GPIO_ACTIVE_HIGH>;
+			debounce-interval = <60>;
 		};
 
 		button3 {
 			label = "button left";
 			linux,code = <BTN_1>;
 			gpios = <&gpio 1 GPIO_ACTIVE_HIGH>;
+			debounce-interval = <60>;
 		};
 	};
 
@@ -36,9 +39,10 @@
 
 		usb {
 			label = "gl-ar300m:green:usb";
-			gpios = <&gpio 2 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 2 GPIO_ACTIVE_HIGH>;
 			trigger-sources = <&hub_port>;
 			linux,default-trigger = "usbport";
+			default-state = "on";
 		};
 
 		wlan {
@@ -54,7 +58,8 @@
 
 		status {
 			label = "gl-ar300m:green:status";
-			gpios = <&gpio 3 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
+			default-state = "on";
 		};
 	};
 };
